@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+		<LangVersion>latest</LangVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<PackageId>Beeq.Grpc.Controller</PackageId>
+		<Version>1.0.0</Version>
+		<Authors>BeeQ</Authors>
+		<Description>Simplificación del uso de gRPC para usarlo en forma de Controllers similar y compatible con REST</Description>
+		<RepositoryUrl>https://github.com/Conntinnum/BeeQ.Grpc.Controller</RepositoryUrl>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+		<PackageIcon>Beeq.Grpc.Controller.png</PackageIcon>
+		<Title>BeeQ Grpc.Controller</Title>
+		<RepositoryType>git</RepositoryType>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Remove=".gitignore" />
+		<None Remove="desktop.ini" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="" />
+		<None Include="Beeq.Grpc.Controller.png" Pack="true" PackagePath="" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Grpc.AspNetCore.Server" Version="2.83.0" />
+		<PackageReference Include="Grpc.Net.Client" Version="2.83.0" />
+		<PackageReference Include="MessagePack" Version="3.1.8" />
+		<PackageReference Include="Google.Protobuf" Version="3.*" />
+		<PackageReference Include="Grpc.Tools" Version="2.*" PrivateAssets="All" />
+		<PackageReference Include="Grpc.Core.Api" Version="2.*" />
+	</ItemGroup>
+	<ItemGroup>
+		<Protobuf Include="dynamic.proto" GrpcServices="Both" />
+	</ItemGroup>
+</Project>

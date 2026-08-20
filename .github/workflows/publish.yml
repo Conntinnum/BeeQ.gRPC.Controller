@@ -1,0 +1,63 @@
+name: Auto Version + Publish NuGet
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Necesario para leer tags
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Calculate next MINOR version
+        id: calc_version
+        run: |
+          TAG=${{ steps.get_tag.outputs.tag }}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${TAG#v}"
+          NEW_MINOR=$((MINOR+1))
+          NEW_VERSION="v${MAJOR}.${NEW_MINOR}.0"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create new tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ steps.calc_version.outputs.new_version }}
+          git push origin ${{ steps.calc_version.outputs.new_version }}
+
+      - name: Update csproj version
+        run: |
+          VERSION=${{ steps.calc_version.outputs.new_version }}
+          VERSION=${VERSION#v}
+          sed -i "s/<Version>.*<\/Version>/<Version>$VERSION<\/Version>/" BeeQ.Grpc.Controller.csproj
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      - name: Pack
+        run: dotnet pack BeeQ.Grpc.Controller.csproj --configuration Release --output ./nupkg
+
+      - name: Publish to NuGet
+        run: dotnet nuget push "./nupkg/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json

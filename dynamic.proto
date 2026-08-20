@@ -1,0 +1,20 @@
+﻿syntax = "proto3";
+
+option csharp_namespace = "BeeQ.Grpc";
+
+package dynamic;
+
+service DynamicService {
+    rpc Execute (DynamicRequest) returns (DynamicResponse);
+}
+
+message DynamicRequest {
+    string service = 1;
+    string method = 2;
+    string version = 3;
+    bytes payload = 4;
+}
+
+message DynamicResponse {
+    bytes payload = 1;
+}
