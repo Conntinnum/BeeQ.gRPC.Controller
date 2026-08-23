@@ -1,20 +1,29 @@
 # BeeQ.gRPC.Controller
-Simplificación del uso de gRPC para usarlo en forma de Controllers similar y compatible con REST. \
-Tambien simplifica la creación de los archivos .proto ya que no son necesarios y pueden utilizarse los objetos class típicos de Json.
+
+Simplifies the usage of gRPC by allowing a Controller-like approach similar to and compatible with REST.
+
+It also eliminates the need to manually create `.proto` files, allowing you to use standard C# JSON class objects directly.
 
 > [!NOTE]
-> Esta librería es para simplificar la comunicación entre sistemas .NET, no es una forma que se recomiende para comunicaciones formales con sistemas externos, donde se recomienda el uso de los archivos proto para mantener el tipado entre sistemas. Esta librería tiene como objetivo comunicar servicios que poseen los mismos objetos class ya creados de ambos lados de la llamada simplificando la creación de los archivos .proto que solo duplicarían código.
+> This library is intended to simplify communication between **.NET systems**. It is not recommended for formal communication with external third-party systems where `.proto` files are preferred to maintain strict contract typing across different languages. The main goal of this library is to seamlessly connect services that already share the same C# class objects on both sides of the call, avoiding redundant `.proto` definitions.
 
+---
 
-## Configuración
-La librería requiere 2 pasos de configuración en el proyecto que la use. \
-La App puede ser configurada como `Servidor` o `Solo Cliente`. \
-Es importante que al invocar el método `UseGrpcController` se envíe como parámetro los Assemblys de los proyectos que tengan los Controllers y Servicios que utilicen [GrpcService] de otro modo no serán incluídos como servicio gRPC y al invocarlos se devolverá un `RpcException` con `StatusCode.NotFound`
+## Configuration
 
-### Servidor
-La librería permite configurar la app como Servidor de gRPC. \
-Sin embargo, esto no limita la capacidad de enviar mensajes a otros gRPC.Controller (ver mas adelante `Forma Standard` de hacer una llamada)
-``` csharp
+The library requires a 2-step setup process in your project.
+
+The application can be configured either as a **Server** or as a **Client Only**.
+
+> **Important:** When invoking `UseGrpcController`, you must pass the target Assemblies containing the Controllers and Services that use `[GrpcService]` as parameters. Otherwise, they will not be registered as gRPC services, and calling them will throw an `RpcException` with `StatusCode.NotFound`.
+
+### Server
+
+Allows you to configure your application to act as a gRPC Server.
+
+Note that this does not restrict your app from making outbound calls to other gRPC controllers (see the *Standard Approach* section below).
+
+```csharp
 using BeeQ;
 ...
 var builder = WebApplication.CreateBuilder(args);
@@ -25,12 +34,15 @@ var app = builder.Build();
 ...
 app.UseGrpcController(typeof(Program).Assembly);
 ...
-app.Run()
+app.Run();
+
 ```
 
-### Cliente
-La librería permite configurar la app como exclusivamente Cliente de gRPC. Es decir que no estará escuchando llamadas, solo hará llamadas a otros Servicios gRPC. \
-``` csharp
+### Client
+
+Configures the app exclusively as a gRPC Client. In this mode, the app will not listen for incoming gRPC calls; it will only make requests to other gRPC services.
+
+```csharp
 using BeeQ;
 ...
 var builder = WebApplication.CreateBuilder(args);
@@ -41,27 +53,37 @@ var app = builder.Build();
 ...
 app.UseGrpcController(typeof(Program).Assembly);
 ...
-app.Run()
+app.Run();
+
 ```
 
-### Formas alternativas para realizar Llamadas gRPC
-Existen formas alternativas si es que ya se cuenta con la Uri del servicio de destino al momento de crear la app o si se obtiene posterior a que la App haya levantado.
+---
 
-#### Forma Standard
-Al momento de Agregar el servicio del Host, se deja la funcion sin parámetros. \
-La clase `GrpcClient` será accesible desde Inyector pero esto implica que al momento de usar el método de envío se deberá previamente establecer la url al servicio 
+### Alternative Ways to Make gRPC Calls
 
-> Program.cs
-``` csharp
+There are alternative approaches depending on whether you know the target service URI at startup or retrieve it dynamically after the application has started.
+
+#### Standard Approach
+
+Register the client service without passing parameters.
+
+The `GrpcClient` instance will be available via Dependency Injection (DI), but you must set the target URL using `UseUrl(...)` before making a request.
+
+> **Program.cs**
+
+```csharp
 builder.Services.AddGrpcControllerClient();
+
 ```
-> ClienteService.cs (ejemplo)
-``` csharp
-public class ClienteService
+
+> **ClientService.cs** *(Example)*
+
+```csharp
+public class ClientService
 {
     private readonly GrpcClient grpc;
 
-    public ClienteService(GrpcClient grpc)
+    public ClientService(GrpcClient grpc)
     {
         this.grpc = grpc;
         this.grpc.UseUrl("http://127.0.0.1:8800");
@@ -69,53 +91,70 @@ public class ClienteService
 
     ...
 }
+
 ```
 
 > [!NOTE]
-> Hay que tener especial cuidado con el `UseUrl()` ya que al momento de usarlo se crea y se abre la conexión con el servicio y eso genera un costo. Debe ser usado la menor cantidad de veces o catchearlo
+> Be cautious when using `UseUrl()`, as calling it creates and opens a network connection to the service, which carries an execution overhead. It should be called sparingly or cached appropriately.
+> 
+> 
 
-Por ejemplo, si tenemos múltiples conexiones a diferentes servicios, tal vez sea buena idea guardar las referencias en memoria de forma estática o en Singleton.
-``` csharp
-public class ClienteService
+For instance, if you handle multiple connections to different remote services, it is recommended to cache instances in memory (e.g., as static fields or within a Singleton):
+
+```csharp
+public class ClientService
 {
-    private static readonly GrpcClient? grpcServicio1;
-    private static readonly GrpcClient? grpcServicio2;
+    private static readonly GrpcClient? grpcService1;
+    private static readonly GrpcClient? grpcService2;
 
-    public ClienteService
+    public ClientService()
     {
-        if (this.grpcServicio1 == null) 
-            grpcServicio1 = new GrpcClient("http://127.0.0.1:8800");
+        if (grpcService1 == null) 
+            grpcService1 = new GrpcClient("http://127.0.0.1:8800");
 
-        if (this.grpcServicio2 == null) 
-            grpcServicio1 = new GrpcClient("http://127.0.0.1:2200");
+        if (grpcService2 == null) 
+            grpcService2 = new GrpcClient("http://127.0.0.1:2200");
     }
 }
+
 ```
 
+#### Pre-configured URL Approach
 
-#### Forma con la Url preseteada
-Al momento de Agregar el servicio del Host, se indica la url y ya queda configurada de esa forma. \
-La clase `GrpcClient` será accesible desde Inyector y ya vendrá con la Url establecida. \
-Es válido aclarar que la Url se puede cambiar utilizando el método `UseUrl()` pero no es necesario
+Provide the target URL at service registration time.
 
-> Program.cs
-``` csharp
+The `GrpcClient` instance injected via DI will come pre-configured with that URL. You can still override it using `UseUrl()`, though it is generally not necessary.
+
+> **Program.cs**
+
+```csharp
 builder.Services.AddGrpcControllerClient("http://127.0.0.1:8080");
+
 ```
-> ClienteService.cs (ejemplo)
-``` csharp
-public class ClienteService(GrpcClient grpc)
+
+> **ClientService.cs** *(Example)*
+
+```csharp
+public class ClientService(GrpcClient grpc)
 {
     ...
 }
+
 ```
 
-## Lado Servidor
-### Uso
-La librería permite recuperar información de los servicios gRPC de forma similar a como se hace con los controladores REST, usando atributos y métodos similares. \
-Incluso permite que un método sea REST y gRPC al mismo tiempo, usando el mismo método para ambos protocolos. \
-Ejemplo de Uso:
-``` csharp
+---
+
+## Server Side
+
+### Usage
+
+The library allows you to expose gRPC endpoints using familiar Controller-style attributes and patterns.
+
+It even supports Dual-Mode methods (REST + gRPC simultaneously) using the exact same C# method.
+
+**Example:**
+
+```csharp
 [GrpcService("WeatherForecast")]
 [ApiController, Route("[controller]")]
 public class WeatherForecastController : ControllerBase
@@ -127,13 +166,16 @@ public class WeatherForecastController : ControllerBase
         ...
     }
 }
-``` 
-En este ejemplo, el método `Get` es accesible tanto vía gRPC como vía HTTP GET, y se puede acceder a él usando el nombre del método y la versión especificada en el atributo `GrpcMethod`.
 
-#### Solo Grpc
-Es posible crear métodos que solo sean accesibles vía gRPC, para ello se puede usar el atributo `GrpcMethod` sin el atributo `HttpGet` o cualquier otro atributo de HTTP.
+```
 
-``` csharp
+In this example, the `Get` method is accessible via both HTTP GET (REST) and gRPC, using the method name and version specified in the `[GrpcMethod]` attribute.
+
+#### gRPC Only
+
+You can also create methods exclusively accessible via gRPC by using `[GrpcMethod]` without adding HTTP attributes like `[HttpGet]`.
+
+```csharp
 [GrpcService("WeatherForecast")]
 public class WeatherForecastController
 {
@@ -143,44 +185,148 @@ public class WeatherForecastController
         ...
     }
 }
-``` 
 
-
-## Lado Cliente
-Para realizar las llamadas gRPC solo se debe instanciar la clase `GrpcClient` e invocar al método `ExecuteAsync`
-``` csharp
-public class ClienteService(GrpcClient grpc)
-{
-    public async Task<ClienteDto[]?> GetClientes(ClienteFiltrosDto filtros)
-    {
-        return await grpc.ExecuteAsync<ClienteFiltrosDto, ClienteDto[]>("Clientes", "Find", "v1", filtros);
-    }
-}
 ```
 
-### Autentificación
-Para enviar la información de `authorization`, existe el parámetro opcional `auth`
-``` csharp
-public class ClienteService(GrpcClient grpc)
+---
+
+## Client Side
+
+To execute gRPC calls, simply inject or instantiate `GrpcClient` and call `ExecuteAsync`:
+
+```csharp
+public class ClientService(GrpcClient grpc)
 {
-    public async Task<ClienteDto[]?> GetClientes(ClienteFiltrosDto filtros)
+    public async Task<ClientDto[]?> GetClients(ClientFilterDto filters)
+    {
+        return await grpc.ExecuteAsync<ClientFilterDto, ClientDto[]>("Clients", "Find", "v1", filters);
+    }
+}
+
+```
+
+### Authentication
+
+To forward `Authorization` tokens, pass the optional `auth` parameter:
+
+```csharp
+public class ClientService(GrpcClient grpc)
+{
+    public async Task<ClientDto[]?> GetClients(ClientFilterDto filters)
     {
         var auth = Request.Headers["Authorization"];
-        return await grpc.ExecuteAsync<ClienteFiltrosDto, ClienteDto[]>("Clientes", "Find", "v1", filtros, jwt, auth: auth);
+        return await grpc.ExecuteAsync<ClientFilterDto, ClientDto[]>("Clients", "Find", "v1", filters, auth: auth);
     }
 }
+
 ```
 
-### Manejo de Threads
-Es posible controlar el Task con CancellationToken enviandolo opcionalmente a la función.
+### Threading & Cancellation
 
-``` csharp
-public class ClienteService(GrpcClient grpc)
+You can control request execution by passing an optional `CancellationToken`:
+
+```csharp
+public class ClientService(GrpcClient grpc)
 {
-    public async Task<ClienteDto[]?> GetClientes(ClienteFiltrosDto filtros)
+    public async Task<ClientDto[]?> GetClients(ClientFilterDto filters)
     {
-        var cancelationToken = new CancellationTokenSource();
-        return await grpc.ExecuteAsync<ClienteFiltrosDto, ClienteDto[]>("Clientes", "Find", "v1", filtros, jwt, cancellationToken: cancelationToken);
+        var cts = new CancellationTokenSource();
+        return await grpc.ExecuteAsync<ClientFilterDto, ClientDto[]>("Clients", "Find", "v1", filters, cancellationToken: cts.Token);
     }
 }
+
 ```
+
+---
+
+## Auto-Documentation
+
+The library includes built-in auto-documentation tools that generate metadata about available services once the application is running:
+
+```csharp
+[ApiController]
+public class GrpcDocumenterController : BaseController
+{
+    [HttpGet("openapi")]
+    public string GetOpenApi()
+    {
+        return BeeQ.DynamicGrpcService.GenerateOpenApi();
+    }
+}
+
+```
+
+---
+
+## External gRPC Calls
+
+Although the main goal of this library is to abstract gRPC setup and let you work directly with C# objects, you can still call these services from external applications or non-.NET clients.
+
+The underlying `.proto` contract is defined as follows:
+
+```proto
+syntax = "proto3";
+
+option csharp_namespace = "BeeQ.Grpc";
+
+package dynamic;
+
+service DynamicService {
+    rpc Execute (DynamicRequest) returns (DynamicResponse);
+}
+
+message DynamicRequest {
+    string service = 1;
+    string method = 2;
+    string version = 3;
+    bytes payload = 4;
+}
+
+message DynamicResponse {
+    bytes payload = 1;
+}
+
+```
+
+When invoking the `Execute` RPC method, set the request parameters as follows:
+
+* `service`: Name of the target gRPC service (matches `[GrpcService("NAME")]`).
+
+
+* `method` and `version`: Target method and version (matches `[GrpcMethod("METHOD", "VERSION")]`).
+
+
+* `payload`: The request body serialized into raw binary.
+
+
+
+This library uses the **MessagePack** standard for object-to-bytes serialization and deserialization.
+
+---
+
+## Minimal APIs
+
+The library supports ASP.NET Core Minimal APIs.
+
+Since there are no Controller classes in Minimal API setups, you specify the service name directly per endpoint mapping using `[GrpcMinimal]`:
+
+```csharp
+...
+
+app.MapControllers();
+
+app.MapPost("v1/test", [GrpcMinimal("tester", "test", "v1")] () =>
+{
+    return "example";
+});
+
+...
+
+app.UseGrpcController(typeof(Program).Assembly);
+
+app.Run();
+
+```
+
+> **Note:** Ensure `UseGrpcController` is called **after** your endpoint `Map` definitions.
+

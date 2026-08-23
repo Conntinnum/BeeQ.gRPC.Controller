@@ -7,7 +7,7 @@ namespace BeeQ;
 public partial class DynamicGrpcService
 {
     /// <summary>
-    /// Genera un documento OpenAPI (Swagger) basado en los métodos gRPC dinámicos registrados.
+    /// Generates an OpenAPI (Swagger) document based on the registered dynamic gRPC methods.
     /// </summary>
     /// <returns></returns>
     public static string GenerateOpenApi()

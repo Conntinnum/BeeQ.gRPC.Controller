@@ -16,6 +16,7 @@
 		<PackageIcon>Beeq.Grpc.Controller.png</PackageIcon>
 		<Title>BeeQ Grpc.Controller</Title>
 		<RepositoryType>git</RepositoryType>
+		<PackageReleaseNotes>Minimal API support is added via [GrpcMinimal] + English Documentation</PackageReleaseNotes>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -24,15 +25,15 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Include="README.md" Pack="true" PackagePath="" />
 		<None Include="Beeq.Grpc.Controller.png" Pack="true" PackagePath="" />
+		<None Include="README.md" Pack="true" PackagePath="" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Grpc.AspNetCore.Server" Version="2.83.0" />
 		<PackageReference Include="Grpc.Net.Client" Version="2.83.0" />
 		<PackageReference Include="MessagePack" Version="3.1.8" />
-		<PackageReference Include="Google.Protobuf" Version="3.*" />
+		<PackageReference Include="Google.Protobuf" Version="3.36.0" />
 		<PackageReference Include="Grpc.Tools" Version="2.*" PrivateAssets="All" />
 		<PackageReference Include="Grpc.Core.Api" Version="2.*" />
 	</ItemGroup>
